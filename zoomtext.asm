@@ -15,8 +15,28 @@ ZOOM_CHAR_MAP = $8000
 topline:    .byte 0
 bottomline: .byte 0
 zoom_idx:   .word 0
+line_len:   .byte 0
+line_str:   .res 20
+welcome:    .byte "type something!"
+quit:       .byte 17,21,9,20
+goodbye:    .byte "bye!"
+
+WELCOME_LEN = 15
+GOODBYE_LEN = 4
 
 start:
+   ldx #0
+@welcome_loop:
+   phx
+   lda welcome,x
+   jsr CHROUT
+   plx
+   inx
+   cpx #WELCOME_LEN
+   bne @welcome_loop
+   lda #$0D
+   jsr CHROUT
+
    stz VERA_ctrl
    lda VERA_L1_tilebase
    and #$80
@@ -77,32 +97,80 @@ start:
    bne @charloop
 
    ; zoomed char map populated
-   lda #8
+
+@read_line:
+   stz line_len
+@chrin_loop:
+   jsr CHRIN
+   inc line_len
+   cmp #$0D
+   bne @chrin_loop
+
+   sec
+   jsr PLOT
+   ldy #0
+   stz VERA_ctrl
+   lda #$20
+   sta VERA_addr_bank
+   stx VERA_addr_high
+   stz VERA_addr_low
+   clc
+   jsr PLOT
+
+   lda line_len
+   cmp #21
+   bmi @vpeek_line
+   lda #20
+   sta line_len
+@vpeek_line:
+   ldx #0
+@vpeek_loop:
+   lda VERA_data0
+   sta line_str,x
+   inx
+   cpx line_len
+   bne @vpeek_loop
+
+   lda line_len
+   cmp #4
+   bne @putc_line
+   ldx #0
+@check_quit:
+   lda line_str,x
+   cmp quit,x
+   bne @putc_line
+   inx
+   cpx #4
+   beq @goodbye
+   bra @check_quit
+
+@putc_line:
+   ldx #0
+@putc_loop:
+   phx
+   lda line_str,x
    jsr zoom_putc
-   lda #5
-   jsr zoom_putc
-   lda #12
-   jsr zoom_putc
-   lda #12
-   jsr zoom_putc
-   lda #15
-   jsr zoom_putc
-   lda #$2C
-   jsr zoom_putc
+   plx
+   inx
+   cpx line_len
+   bne @putc_loop
+
    jsr zoom_println
-   lda #23
-   jsr zoom_putc
-   lda #15
-   jsr zoom_putc
-   lda #18
-   jsr zoom_putc
-   lda #12
-   jsr zoom_putc
-   lda #4
-   jsr zoom_putc
-   lda #$21
-   jsr zoom_putc
-   jsr zoom_println
+   jmp @read_line
+
+@goodbye:
+   ldx #0
+@goodbye_loop:
+   phx
+   lda goodbye,x
+   jsr CHROUT
+   plx
+   inx
+   cpx #GOODBYE_LEN
+   bne @goodbye_loop
+   lda #$0D
+   jsr CHROUT
+
 rts
 
 zoom_putc:  ; A: character to put as zoomed character
@@ -169,7 +237,55 @@ zoom_println:
    inx
    inx
    inx
+   cpx #57
+   bmi @down
+   phx
+   jsr scroll_up
+   plx
+   dex
+   dex
+   dex
+   dex
+@down:
    ldy #0
    clc
    jsr PLOT
+   rts
+
+scroll_up:
+   stz VERA_ctrl
+   lda #$10
+   sta VERA_addr_bank
+   lda #$04
+   sta VERA_addr_high
+   stz VERA_addr_low
+   lda #1
+   sta VERA_ctrl
+   lda #$10
+   sta VERA_addr_bank
+   stz VERA_addr_high
+   stz VERA_addr_low
+   ldx #56
+   ldy #0
+@copy_loop:
+   lda VERA_data0
+   sta VERA_data1
+   dey
+   bne @copy_loop
+   ldy #0
+   dex
+   bne @copy_loop
+   ldx #4
+@clear_loop:
+   lda #$20
+   sta VERA_data1
+   dey
+   lda #$61
+   sta VERA_data1
+   dey
+   bne @clear_loop
+   ldy #0
+   dex
+   bne @clear_loop
+   stz VERA_ctrl
    rts
