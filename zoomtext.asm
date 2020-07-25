@@ -34,8 +34,14 @@ start:
    inx
    cpx #WELCOME_LEN
    bne @welcome_loop
-   lda #$0D
-   jsr CHROUT
+   jsr zoom_println
+   sec
+   jsr PLOT
+   dex
+   dex
+   dex
+   clc
+   jsr PLOT
 
    stz VERA_ctrl
    lda VERA_L1_tilebase
@@ -105,6 +111,7 @@ start:
    inc line_len
    cmp #$0D
    bne @chrin_loop
+   dec line_len
 
    sec
    jsr PLOT
