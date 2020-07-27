@@ -18,7 +18,7 @@ zoom_idx:   .word 0
 line_len:   .byte 0
 line_str:   .res 40
 welcome:    .byte "type something!"
-quit:       .byte 17,21,9,20
+quit:       .byte 17,0,21,0,9,0,20,0
 goodbye:    .byte "bye!"
 char_color: .byte 0
 
@@ -141,7 +141,7 @@ start:
    bne @vpeek_loop
 
    lda line_len
-   cmp #4
+   cmp #8
    bne @putc_line
    ldx #0
 @check_quit:
@@ -149,7 +149,8 @@ start:
    cmp quit,x
    bne @putc_line
    inx
-   cpx #4
+   inx
+   cpx #8
    beq @goodbye
    bra @check_quit
 
