@@ -16,10 +16,11 @@ topline:    .byte 0
 bottomline: .byte 0
 zoom_idx:   .word 0
 line_len:   .byte 0
-line_str:   .res 20
+line_str:   .res 40
 welcome:    .byte "type something!"
 quit:       .byte 17,21,9,20
 goodbye:    .byte "bye!"
+char_color: .byte 0
 
 WELCOME_LEN = 15
 GOODBYE_LEN = 4
@@ -112,12 +113,13 @@ start:
    cmp #$0D
    bne @chrin_loop
    dec line_len
+   asl line_len
 
    sec
    jsr PLOT
    ldy #0
    stz VERA_ctrl
-   lda #$20
+   lda #$10
    sta VERA_addr_bank
    stx VERA_addr_high
    stz VERA_addr_low
@@ -125,9 +127,9 @@ start:
    jsr PLOT
 
    lda line_len
-   cmp #21
+   cmp #41
    bmi @vpeek_line
-   lda #20
+   lda #40
    sta line_len
 @vpeek_line:
    ldx #0
@@ -152,14 +154,16 @@ start:
    bra @check_quit
 
 @putc_line:
-   ldx #0
+   ldy #0
 @putc_loop:
-   phx
-   lda line_str,x
+   lda line_str,y
+   iny
+   ldx line_str,y
+   iny
+   phy
    jsr zoom_putc
-   plx
-   inx
-   cpx line_len
+   ply
+   cpy line_len
    bne @putc_loop
 
    jsr zoom_println
@@ -181,8 +185,10 @@ start:
 rts
 
 zoom_putc:  ; A: character to put as zoomed character
+            ; X: character color
    sta zoom_idx
    stz zoom_idx+1
+   stx char_color
    asl zoom_idx
    rol zoom_idx+1
    asl zoom_idx
@@ -201,7 +207,7 @@ zoom_putc:  ; A: character to put as zoomed character
    sec
    jsr PLOT
    stz VERA_ctrl
-   lda #$20
+   lda #$10
    sta VERA_addr_bank
    stx VERA_addr_high
    tya
@@ -212,6 +218,8 @@ zoom_putc:  ; A: character to put as zoomed character
    ldy #0
 @loop:
    lda (ZP_PTR_1),y
+   sta VERA_data0
+   lda char_color
    sta VERA_data0
    iny
    tya
